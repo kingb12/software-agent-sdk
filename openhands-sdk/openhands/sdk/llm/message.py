@@ -478,7 +478,8 @@ class Message(BaseModel):
                         reasoning_item["encrypted_content"] = ri.encrypted_content
                     if ri.status:
                         reasoning_item["status"] = ri.status
-                    items.append(reasoning_item)
+                    logger.warning(f"Ignoring {reasoning_item} b/c Brendan said so")
+                    # items.append(reasoning_item)  # <- un-comment to include reasoning again
 
             # Emit prior assistant content as a single message item using output_text
             content_items: list[dict[str, Any]] = []
