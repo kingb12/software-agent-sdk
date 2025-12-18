@@ -183,7 +183,7 @@ class ConversationService:
         if self._event_services is None:
             raise ValueError("inactive_service")
         conversation_id = request.conversation_id or uuid4()
-        logging.warning("brendan-agent-logs", request.agent.model_dump_json())
+        logging.warning("brendan-agent-logs: " + request.agent.model_dump_json())
 
         existing_event_service = self._event_services.get(conversation_id)
         if existing_event_service and existing_event_service.is_open():
