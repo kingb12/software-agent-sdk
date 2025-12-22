@@ -1,29 +1,37 @@
 import os
 
-from openhands.sdk import LLM, Agent, Conversation, Tool
-from openhands.tools.file_editor import FileEditorTool
-from openhands.tools.task_tracker import TaskTrackerTool
-from openhands.tools.terminal import TerminalTool
+from openhands.sdk import LLM, Agent, Conversation, Event, LLMConvertibleEvent
+from openhands.tools.preset.dialogue import get_dialogue_tools
 
 
 llm = LLM(
-    model=os.getenv("LLM_MODEL", "anthropic/claude-sonnet-4-5-20250929"),
+    model=os.getenv("LLM_MODEL", "gpt-5-nano"),
     api_key=os.getenv("LLM_API_KEY"),
     base_url=os.getenv("LLM_BASE_URL", None),
 )
 
-agent = Agent(
-    llm=llm,
-    tools=[
-        Tool(name=TerminalTool.name),
-        Tool(name=FileEditorTool.name),
-        Tool(name=TaskTrackerTool.name),
-    ],
-)
+tools = get_dialogue_tools()
+agent = Agent(llm=llm, tools=tools)
 
 cwd = os.getcwd()
-conversation = Conversation(agent=agent, workspace=cwd)
 
-conversation.send_message("Write 3 facts about the current project into FACTS.txt.")
+llm_messages = []
+
+
+def conversation_callback(event: Event):
+    if isinstance(event, LLMConvertibleEvent):
+        llm_messages.append(event.to_llm_message())
+
+
+conversation = Conversation(
+    agent=agent, workspace=cwd, callbacks=[conversation_callback]
+)
+
+conversation.send_message("Use the message user tool to ask me my favorite color")
 conversation.run()
 print("All done!")
+
+print("=" * 100)
+print("Conversation finished. Got the following LLM messages:")
+for i, message in enumerate(llm_messages):
+    print(f"Message {i}: {str(message)[:200]}")
