@@ -4,12 +4,14 @@ from fastapi import APIRouter
 
 from openhands.sdk.tool.registry import list_registered_tools
 from openhands.tools.preset.default import register_default_tools
+from openhands.tools.preset.dialogue import register_dialogue_tools
 from openhands.tools.preset.planning import register_planning_tools
 
 
 tool_router = APIRouter(prefix="/tools", tags=["Tools"])
 register_default_tools(enable_browser=True)
 register_planning_tools()
+register_dialogue_tools()
 
 
 # Tool listing
