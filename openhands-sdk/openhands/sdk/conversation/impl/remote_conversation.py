@@ -632,7 +632,7 @@ class RemoteConversation(BaseConversation):
                 "POST",
                 f"/api/conversations/{self._id}/run",
                 acceptable_status_codes={200, 201, 204, 409},
-                timeout=1800,
+                timeout=3600,
             )
         except Exception as e:  # httpx errors already logged by _send_request
             # Surface conversation id to help resuming
