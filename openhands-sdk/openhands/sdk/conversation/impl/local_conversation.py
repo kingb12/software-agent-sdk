@@ -219,11 +219,15 @@ class LocalConversation(BaseConversation):
         if isinstance(message, str):
             message = Message(role="user", content=[TextContent(text=message)])
 
-        assert message.role == "user", (
-            "Only user messages are allowed to be sent to the agent."
-        )
+        source = "agent" if message.role == "assistant" else "user"
         with self._state:
-            if self._state.execution_status == ConversationExecutionStatus.FINISHED:
+            # Only transition FINISHED -> IDLE for user messages so that injecting
+            # an assistant message (e.g. to work around model quirks) does not
+            # inadvertently restart the agent loop.
+            if (
+                message.role == "user"
+                and self._state.execution_status == ConversationExecutionStatus.FINISHED
+            ):
                 self._state.execution_status = (
                     ConversationExecutionStatus.IDLE
                 )  # now we have a new message
@@ -233,7 +237,8 @@ class LocalConversation(BaseConversation):
             extended_content: list[TextContent] = []
 
             # Handle per-turn user message (i.e., knowledge agent trigger)
-            if self.agent.agent_context:
+            # Only augment user messages; assistant injections are verbatim.
+            if message.role == "user" and self.agent.agent_context:
                 ctx = self.agent.agent_context.get_user_message_suffix(
                     user_message=message,
                     # We skip skills that were already activated
@@ -252,7 +257,7 @@ class LocalConversation(BaseConversation):
                     self._state.activated_knowledge_skills.extend(activated_skill_names)
 
             user_msg_event = MessageEvent(
-                source="user",
+                source=source,
                 llm_message=message,
                 activated_skills=activated_skill_names,
                 extended_content=extended_content,

@@ -43,7 +43,7 @@ class SendMessageDummyAgent(AgentBase):
 def test_send_message_with_string_creates_correct_message():
     """Test that send_message with string creates the correct Message structure."""
     agent = SendMessageDummyAgent()
-    conversation = Conversation(agent=agent)
+    conversation = Conversation(agent=agent, workspace="/tmp/workspace")
 
     test_text = "Hello, world!"
     conversation.send_message(test_text)
@@ -69,8 +69,8 @@ def test_send_message_string_equivalent_to_message_object():
     agent1 = SendMessageDummyAgent()
     agent2 = SendMessageDummyAgent()
 
-    conversation1 = Conversation(agent=agent1)
-    conversation2 = Conversation(agent=agent2)
+    conversation1 = Conversation(agent=agent1, workspace="/tmp/workspace")
+    conversation2 = Conversation(agent=agent2, workspace="/tmp/workspace")
 
     test_text = "Test message"
 
@@ -104,7 +104,7 @@ def test_send_message_string_equivalent_to_message_object():
 def test_send_message_with_empty_string():
     """Test that send_message works with empty string."""
     agent = SendMessageDummyAgent()
-    conversation = Conversation(agent=agent)
+    conversation = Conversation(agent=agent, workspace="/tmp/workspace")
 
     conversation.send_message("")
 
@@ -120,7 +120,7 @@ def test_send_message_with_empty_string():
 def test_send_message_with_multiline_string():
     """Test that send_message works with multiline strings."""
     agent = SendMessageDummyAgent()
-    conversation = Conversation(agent=agent)
+    conversation = Conversation(agent=agent, workspace="/tmp/workspace")
 
     test_text = "Line 1\nLine 2\nLine 3"
     conversation.send_message(test_text)
@@ -137,7 +137,7 @@ def test_send_message_with_multiline_string():
 def test_send_message_with_message_object():
     """Test that send_message works with Message objects (existing functionality)."""
     agent = SendMessageDummyAgent()
-    conversation = Conversation(agent=agent)
+    conversation = Conversation(agent=agent, workspace="/tmp/workspace")
 
     test_text = "Test message"
     message = Message(role="user", content=[TextContent(text=test_text)])
@@ -153,3 +153,62 @@ def test_send_message_with_message_object():
     assert len(user_event.llm_message.content) == 1
     assert isinstance(user_event.llm_message.content[0], TextContent)
     assert user_event.llm_message.content[0].text == test_text
+
+
+def test_send_message_with_assistant_role_creates_agent_source_event():
+    agent = SendMessageDummyAgent()
+    conversation = Conversation(agent=agent, workspace="/tmp/workspace")
+
+    text = "Here is the question I have for you."
+    message = Message(role="assistant", content=[TextContent(text=text)])
+    conversation.send_message(message)
+
+    # Should have system prompt + injected assistant message
+    assert len(conversation.state.events) == 2
+
+    injected_event = conversation.state.events[-1]
+    assert isinstance(injected_event, MessageEvent)
+    # source should be "agent" (not "user") for assistant-role messages
+    assert injected_event.source == "agent"
+    assert injected_event.llm_message.role == "assistant"
+    assert isinstance(injected_event.llm_message.content[0], TextContent)
+    assert injected_event.llm_message.content[0].text == text
+
+
+def test_send_message_assistant_does_not_reset_execution_status():
+    """Injecting an assistant message must NOT flip execution_status FINISHED -> IDLE.
+
+    This is the key invariant for the Devstral workaround: after message_user fires
+    and the conversation is FINISHED, the client injects an assistant-role echo of
+    the message_user content before sending the real user reply.  That injection
+    must not restart the agent loop prematurely.
+    """
+    from openhands.sdk.conversation.state import ConversationExecutionStatus
+
+    agent = SendMessageDummyAgent()
+    conversation = Conversation(agent=agent, workspace="/tmp/workspace")
+
+    # Simulate the conversation being in FINISHED state (e.g. after message_user ran)
+    conversation._state.execution_status = ConversationExecutionStatus.FINISHED
+
+    assistant_msg = Message(
+        role="assistant", content=[TextContent(text="What would you like to do?")]
+    )
+    conversation.send_message(assistant_msg)
+
+    # Status must stay FINISHED — do not restart the agent
+    assert conversation.state.execution_status == ConversationExecutionStatus.FINISHED
+
+
+def test_send_message_user_still_resets_execution_status_from_finished():
+    """A normal user message must still flip FINISHED -> IDLE as before."""
+    from openhands.sdk.conversation.state import ConversationExecutionStatus
+
+    agent = SendMessageDummyAgent()
+    conversation = Conversation(agent=agent, workspace="/tmp/workspace")
+
+    conversation._state.execution_status = ConversationExecutionStatus.FINISHED
+
+    conversation.send_message("Hello again")
+
+    assert conversation.state.execution_status == ConversationExecutionStatus.IDLE

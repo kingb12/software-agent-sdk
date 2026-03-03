@@ -608,9 +608,6 @@ class RemoteConversation(BaseConversation):
     def send_message(self, message: str | Message, sender: str | None = None) -> None:
         if isinstance(message, str):
             message = Message(role="user", content=[TextContent(text=message)])
-        assert message.role == "user", (
-            "Only user messages are allowed to be sent to the agent."
-        )
         payload = {
             "role": message.role,
             "content": [c.model_dump() for c in message.content],
