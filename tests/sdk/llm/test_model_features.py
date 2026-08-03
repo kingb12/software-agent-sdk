@@ -307,6 +307,7 @@ def test_send_reasoning_content_support(model, expected_send_reasoning):
         ("gpt-4o-mini", 0.0),
         ("claude-3-5-sonnet", 0.0),
         ("claude-3-7-sonnet", 0.0),
+        ("claude-sonnet-5", None),
         ("gemini-1.5-pro", 0.0),
         ("gemini-2.5-pro-experimental", 0.0),
         ("o1", 0.0),

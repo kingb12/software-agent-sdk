@@ -135,12 +135,13 @@ def get_features(model: str) -> ModelFeatures:
 
 # Default temperature mapping.
 # Each entry: (pattern, default_temperature)
-DEFAULT_TEMPERATURE_PATTERNS: list[tuple[str, float]] = [
+DEFAULT_TEMPERATURE_PATTERNS: list[tuple[str, float | None]] = [
     ("kimi-k2-thinking", 1.0),
+    ("claude-sonnet-5", None),
 ]
 
 
-def get_default_temperature(model: str) -> float:
+def get_default_temperature(model: str) -> float | None:
     """Return the default temperature for a given model pattern.
 
     Uses case-insensitive substring matching via model_matches.
